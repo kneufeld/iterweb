@@ -3,12 +3,10 @@ import asyncio
 
 import aiohttp
 import aiohttp.client_exceptions
-from parsel import Selector
 
-from .utils.responsetypes import responsetypes
-from .utils.loadobject import load_object
-from .http import Request, Response
-from .exceptions import DropItem
+from .utils import load_object
+from .reqresp import Request, Response
+from . import DropItem
 
 import logging
 logger = logging.getLogger(__name__)
@@ -16,18 +14,18 @@ logger = logging.getLogger(__name__)
 
 class Spider:
 
-    def __init__(self, request=None, callback=None, pipeline=None, **kw):
+    def __init__(self, parse_func=None, pipeline=None, **kw):
         self.loop = kw.pop('loop', asyncio.get_event_loop())
-        self.request  = request
         self.pipeline = self.build_pipeline(pipeline)
-
-        if callback is None:
-            self.callback = self.parse
+        self.callback = parse_func or self.parse
 
         # let caller put arbitrary values in us, careful about overriding
         # something important
         for name, value in kw.items():
             setattr(self, name, value)
+
+    async def parse(self, response):
+        raise NotImplementedError("%s().parse() not implemented", self.__class__.__name__)
 
     def build_pipeline(self, pipeline):
         """
@@ -39,22 +37,19 @@ class Spider:
 
         ret = []
 
-        for p in pipeline:
-            if isinstance(p, str):
-                p = load_object(p)
+        for stage in pipeline:
+            if isinstance(stage, str):
+                stage = load_object(stage)
 
-            if inspect.isclass(p):
-                assert asyncio.iscoroutinefunction(getattr(p, 'process_item'))
-                p = p() # instantiate class
+            if inspect.isclass(stage):
+                assert asyncio.iscoroutinefunction(getattr(stage, 'process_item'))
+                stage = stage() # instantiate class
             else:
-                assert asyncio.iscoroutinefunction(p)
+                assert asyncio.iscoroutinefunction(stage)
 
-            ret.append(p)
+            ret.append(stage)
 
         return ret
-
-    async def parse(self, response):
-        raise NotImplementedError("%s().parse() not implemented", self.__class__.__name__)
 
     async def fetch(self, client, url):
         """
@@ -63,69 +58,72 @@ class Spider:
         try:
             async with client:
                 resp = await client.get(url)
+                resp.text = await resp.text() # set coro with value, this is allowed
+                return resp
 
-                if resp.status > 299:
-                    logger.error("%s returned %d", url, resp.status)
-                    return resp, None
-
-                return resp, await resp.read()
-
-        except aiohttp.client_exceptions.ClientError as e:
+        except (aiohttp.ClientResponseError, aiohttp.client_exceptions.ClientError) as e:
             logger.error("url: %s: error: %s", url, e)
 
-        return None, None
+        return None
 
-    async def crawl(self, request=None, callback=None, client=None):
+    @staticmethod
+    def __copy_response(url, response):
+        """
+        convert the aiohttp response into our Response type
+        """
+        resp = Response(
+            status=response.status,
+            headers=response.headers,
+            text=response.text,
+        )
+        resp.url = url # original request url
+        return resp
+
+    async def crawl(self, url, client=None):
         """
         main function, this is an async generator, must "call" with a for loop
 
-        async for item in Spider.crawl():
+        async for item in Spider.crawl(url):
             pass
 
-        yields items, aka results of passing through callback and pipeline
+        the response is passed to self.parse and the output of self.parse
+        is sent to the pipeline. The result of the pipeline is returned
 
         request: str or Request
-        callback: async generator
-        client: ClientSession
+        client: aiohttp.ClientSession
         """
-        request = request or self.request
-        assert request
+        # convert Request to its url, happens if self.parse yields a Request
+        if isinstance(url, Request):
+            url = url.url
 
-        # convert string url to a Request
-        if not isinstance(request, Request):
-            request = Request(request)
-
-        callback = request.callback or callback or self.callback
-        assert inspect.isasyncgenfunction(callback), "callback must be an async generator (async with yield)"
+        assert inspect.isasyncgenfunction(self.callback), \
+        "self.parse must be an async generator (async with yield)"
 
         if client is None:
-            client = aiohttp.ClientSession()
+            client = aiohttp.ClientSession(raise_for_status=True)
 
-        resp, body = await self.fetch(client, request.url)
+        resp = await self.fetch(client, url)
 
-        if resp is None or body is None:
-            logger.error("can not proceed from: %s", request.url)
+        if resp is None or resp.text is None:
+            logger.error("can not proceed from: %s", url)
             return
 
-        # make an appropriate response object (HtmlResponse, TextResponse, etc)
-        # probably an HtmlResponse
-        respcls = responsetypes.from_args(headers=resp.headers, url=request.url, body=body)
-        response = respcls(url=request.url, status=resp.status, headers=resp.headers, body=body)
+        resp = Spider.__copy_response(url, resp)
 
-        async for item in self.handle_response(response, callback):
+        async for item in self.handle_response(resp):
             yield item
 
-    async def handle_response(self, response, callback):
+    async def handle_response(self, response):
         """
-        pass the response to the callback (likely self.parse()) and
+        pass the response to the self.parse (likely self.parse()) and
         take it's emitted items and pass them to our pipeline
 
         start another request if we receive a Request, this is how
         a site can "spider"
         """
-        async for item in callback(response):
+        async for item in self.callback(response):
             if isinstance(item, Request):
-                async for item in self.crawl(item, callback):
+                async for item in self.crawl(item):
                     yield item
             else:
                 item = await self.handle_pipeline(item, response)
@@ -143,24 +141,23 @@ class Spider:
         if item is None:
             return None
 
-        for p in self.pipeline:
+        for stage in self.pipeline:
             try:
-                # logger.debug(p)
-                if getattr(p, 'process_item', False):
-                    item = await p.process_item(response, self, item)
+                # logger.debug(stage)
+                if getattr(stage, 'process_item', False):
+                    item = await stage.process_item(response, self, item)
                 else:
-                    item = await p(response, self, item)
+                    item = await stage(response, self, item)
 
             except DropItem as e:
-                logger.warn("%s: dropping item: %s", p.__class__.__name__, e)
+                # THINK should we be logging or the called function?
+                logger.debug("%s: dropping item: %s", stage.__class__.__name__, e)
                 return None
 
+            # THINK should we really be catching this?
             except Exception as e:
-                logger.error("%s: exception: %s", p.__class__.__name__, e)
+                logger.error("%s: exception: %s", stage.__class__.__name__, e)
                 logger.exception(e)
                 return None
-
-        # if item is not None:
-        #     logger.debug(f"finished pipeline for: {item}")
 
         return item

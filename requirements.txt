@@ -1,2 +1,3 @@
 aiohttp
-snappy
+w3lib
+parsel

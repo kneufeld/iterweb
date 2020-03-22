@@ -1,7 +1,6 @@
 import pytest
 
-from iterweb import Spider
-from iterweb.http import Request, Response
+from iterweb import Spider, Request, Response
 
 from . import get_next, beast, redeye
 
@@ -14,8 +13,8 @@ async def test_crawl():
         called = True
         yield {'value': 'value'}
 
-    s = Spider(callback=parse)
-    gen = s.crawl(beast, parse)
+    s = Spider(parse_func=parse)
+    gen = s.crawl(beast)
     item = await get_next(gen)
 
     assert called
@@ -30,8 +29,8 @@ async def test_get_recursive():
 
         yield 'google'
 
-    s = Spider(callback=parse)
-    gen = s.crawl(beast, parse)
+    s = Spider(parse_func=parse)
+    gen = s.crawl(beast)
     item = await get_next(gen)
 
     assert item == 'google'
@@ -45,8 +44,8 @@ async def test_get_redeye():
             src = response.urljoin(src)
             yield src
 
-    s = Spider(callback=parse)
-    gen = s.crawl(beast, parse)
+    s = Spider(parse_func=parse)
+    gen = s.crawl(beast)
     item = await get_next(gen)
 
     assert item == redeye
@@ -59,8 +58,8 @@ async def test_crawl_page_1():
         yield 2
         yield 3
 
-    s = Spider(callback=parse)
-    gen = s.crawl(beast, parse)
+    s = Spider(parse_func=parse)
+    gen = s.crawl(beast)
 
     assert 1 == await get_next(gen)
     assert 2 == await get_next(gen)
@@ -73,8 +72,8 @@ async def test_crawl_exception():
         raise RuntimeError("test error")
         yield 1
 
-    s = Spider()
+    s = Spider(parse_func=parse)
 
     with pytest.raises(RuntimeError):
-        async for item in s.crawl(beast, parse):
+        async for item in s.crawl(beast):
             pass
