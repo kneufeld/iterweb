@@ -4,7 +4,7 @@ __author_email__ = "kneufeld@burgundywall.com"
 __license__      = "MIT"
 __url__          = ""
 
-# from .engine import Engine
+class DropItem(Exception): pass
+
 from .spider import Spider
-from .http import Request
-from .http import Response, TextResponse, HtmlResponse, XmlResponse
+from .reqresp import Request, Response
