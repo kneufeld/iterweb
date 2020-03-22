@@ -14,10 +14,11 @@ logger = logging.getLogger(__name__)
 
 class Spider:
 
-    def __init__(self, parse_func=None, pipeline=None, **kw):
-        self.loop = kw.pop('loop', asyncio.get_event_loop())
+    def __init__(self, pipeline=None, **kw):
         self.pipeline = self.build_pipeline(pipeline)
-        self.callback = parse_func or self.parse
+
+        self.loop = kw.pop('loop', asyncio.get_event_loop())
+        self.callback = kw.pop('parse_func', self.parse)
 
         # let caller put arbitrary values in us, careful about overriding
         # something important
@@ -66,19 +67,6 @@ class Spider:
 
         return None
 
-    @staticmethod
-    def __copy_response(url, response):
-        """
-        convert the aiohttp response into our Response type
-        """
-        resp = Response(
-            status=response.status,
-            headers=response.headers,
-            text=response.text,
-        )
-        resp.url = url # original request url
-        return resp
-
     async def crawl(self, url, client=None):
         """
         main function, this is an async generator, must "call" with a for loop
@@ -108,7 +96,7 @@ class Spider:
             logger.error("can not proceed from: %s", url)
             return
 
-        resp = Spider.__copy_response(url, resp)
+        resp = Response._copy_response(url, resp)
 
         async for item in self.handle_response(resp):
             yield item
@@ -126,14 +114,14 @@ class Spider:
                 async for item in self.crawl(item):
                     yield item
             else:
-                item = await self.handle_pipeline(item, response)
+                item = await self.handle_pipeline(self.pipeline, response, item)
 
                 if item is None:
                     continue
 
                 yield item
 
-    async def handle_pipeline(self, item, response):
+    async def handle_pipeline(self, pipeline, response, item):
         """
         pass item through provided pipeline, a pipeline stage
         can return the item, or raise DropItem
@@ -141,17 +129,17 @@ class Spider:
         if item is None:
             return None
 
-        for stage in self.pipeline:
+        for stage in pipeline:
             try:
                 # logger.debug(stage)
                 if getattr(stage, 'process_item', False):
-                    item = await stage.process_item(response, self, item)
+                    item = await stage.process_item(self, response, item)
                 else:
-                    item = await stage(response, self, item)
+                    item = await stage(self, response, item)
 
             except DropItem as e:
                 # THINK should we be logging or the called function?
-                logger.debug("%s: dropping item: %s", stage.__class__.__name__, e)
+                logger.warn("%s: dropping item: %s", stage.__class__.__name__, e)
                 return None
 
             # THINK should we really be catching this?

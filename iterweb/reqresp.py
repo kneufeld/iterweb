@@ -13,6 +13,15 @@ class Request:
 
 class Response(aiohttp.web.Response):
 
+    def __init__(self, url, *args, **kw):
+        body = kw.pop('body', None)
+        super().__init__(*args, **kw)
+
+        if body:
+            self.body = body
+
+        self.url = url
+
     @reify
     def selector(self):
         return Selector(self.text)
@@ -29,3 +38,14 @@ class Response(aiohttp.web.Response):
         """
         return urljoin(self.url, url)
 
+    @staticmethod
+    def _copy_response(url, response):
+        """
+        convert the aiohttp response into our Response type
+        """
+        return Response(
+            url,
+            status=response.status,
+            headers=response.headers,
+            text=response.text,
+        )
