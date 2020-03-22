@@ -2,8 +2,6 @@ from urllib.parse import urljoin
 
 import aiohttp.web
 from parsel import Selector
-from w3lib.encoding import (html_body_declared_encoding, html_to_unicode,
-                            http_content_type_encoding, resolve_encoding)
 
 from .utils.reify import reify
 
