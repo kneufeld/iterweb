@@ -1,3 +1,2 @@
 aiohttp
-w3lib
 parsel
