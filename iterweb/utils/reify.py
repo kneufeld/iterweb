@@ -1,3 +1,5 @@
+# https://docs.pylonsproject.org/projects/pyramid/en/latest/_modules/pyramid/decorator.html#reify
+
 class reify():
     """
     convert property into a variable on first call
