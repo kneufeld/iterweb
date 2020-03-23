@@ -11,7 +11,6 @@ This is a budget version of [scrapy](https://scrapy.org/) but with a few feature
 
 Similarities to scrapy:
 
-* uses scrapy `Request` and `Response` objects
 * uses the concept of a pipeline
 * yield a `Request` to get another page
 
@@ -40,7 +39,7 @@ class StageUrlJoin:
     """
     convert potential relative url to absolute url
     """
-    async def process_item(self, response, spider, url):
+    async def process_item(self, spider, response, url):
         url = response.urljoin(url)
         return url
 

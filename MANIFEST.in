@@ -1,0 +1,3 @@
+include requirements.txt
+include CONTRIBUTORS.md CHANGELOG.md LICENSE.md
+include README.md

@@ -2,7 +2,7 @@ __version__      = "0.1"
 __author__       = "Kurt Neufeld"
 __author_email__ = "kneufeld@burgundywall.com"
 __license__      = "MIT"
-__url__          = ""
+__url__          = "https://github.com/kneufeld/iterweb"
 
 class DropItem(Exception): pass
 

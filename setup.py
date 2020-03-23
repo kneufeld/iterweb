@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
+a very simple asyncio web scraper based conceptually on scrapy
 """
 
 import os
@@ -61,6 +62,7 @@ setup(
     # metadata for upload to PyPI
     description = "iterweb is a simple web scraper",
     long_description = __doc__,
+    long_description_content_type="text/markdown",
     version = module.__version__,
     author = module.__author__,
     author_email = module.__author_email__,
