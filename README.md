@@ -40,7 +40,7 @@ class StageUrlJoin:
     """
     convert potential relative url to absolute url
     """
-    async def process_item(self, response, spider, url):
+    async def process_item(self, spider, response, url):
         url = response.urljoin(url)
         return url
 
