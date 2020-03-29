@@ -6,7 +6,7 @@ import aiohttp.client_exceptions
 
 from .utils import load_object
 from .reqresp import Request, Response
-from . import DropItem, DropItemBad
+from . import DropItem, DropItemError
 
 import logging
 logger = logging.getLogger(__name__)
@@ -142,7 +142,7 @@ class Spider:
                 logger.debug("%s: dropping item: %s", stage.__class__.__name__, e)
                 return None
 
-            except DropItemBad as e:
+            except DropItemError as e:
                 # THINK should we be logging or the called function?
                 logger.error("%s: dropping item: %s", stage.__class__.__name__, e)
                 return None
