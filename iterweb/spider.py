@@ -98,8 +98,8 @@ class Spider:
             resp = await self.fetch(client_factory, url)
 
             if resp is None or resp.text is None:
-                logger.error("can not proceed from: %s", url)
-                return
+                logger.error("can not proceed with: %s", url)
+                continue
 
             resp = Response._copy_response(url, resp)
 
