@@ -14,11 +14,15 @@ logger = logging.getLogger(__name__)
 
 class Spider:
 
-    def __init__(self, pipeline=None, **kw):
-        self.pipeline = self.build_pipeline(pipeline)
+    def __init__(self, **kw):
 
         self.loop = kw.pop('loop', asyncio.get_event_loop())
         self.callback = kw.pop('parse_func', self.parse)
+
+        pipeline = kw.pop('pipeline', None)
+        self.pipeline = self.build_pipeline(pipeline)
+
+        self.queue = asyncio.Queue(loop=self.loop)
 
         # let caller put arbitrary values in us, careful about overriding
         # something important
@@ -52,7 +56,21 @@ class Spider:
 
         return ret
 
-    async def fetch(self, client, url):
+    async def enqueue(self, urls):
+        if not urls:
+            return
+
+        if not isinstance(urls, list):
+            urls = [urls]
+
+        for url in urls:
+            # convert Request to its url, happens if self.parse yields a Request
+            if isinstance(url, Request):
+                url = url.url
+
+            await self.queue.put(url)
+
+    async def fetch(self, client_factory, url):
         """
         return resp & body or None if error
         """
@@ -111,8 +129,7 @@ class Spider:
         """
         async for item in self.callback(response):
             if isinstance(item, Request):
-                async for item in self.crawl(item):
-                    yield item
+                await self.enqueue(item.url)
             else:
                 item = await self.handle_pipeline(self.pipeline, response, item)
 
