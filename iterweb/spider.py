@@ -4,9 +4,8 @@ import asyncio
 import aiohttp
 import aiohttp.client_exceptions
 
-from .utils import load_object
+from .pipeline import Pipeline
 from .reqresp import Request, Response
-from . import DropItem, DropItemError
 
 import logging
 logger = logging.getLogger(__name__)
@@ -19,8 +18,8 @@ class Spider:
         self.loop = kw.pop('loop', asyncio.get_event_loop())
         self.callback = kw.pop('parse_func', self.parse)
 
-        pipeline = kw.pop('pipeline', None)
-        self.pipeline = self.build_pipeline(pipeline)
+        stages = kw.pop('pipeline', None)
+        self.pipeline = Pipeline(stages)
 
         self.queue = asyncio.Queue(loop=self.loop)
 
@@ -31,30 +30,6 @@ class Spider:
 
     async def parse(self, response):
         raise NotImplementedError("%s().parse() not implemented", self.__class__.__name__)
-
-    def build_pipeline(self, pipeline):
-        """
-        if pipeline members are strings then load them
-        else assure that they're coroutines
-        """
-        if pipeline is None:
-            return []
-
-        ret = []
-
-        for stage in pipeline:
-            if isinstance(stage, str):
-                stage = load_object(stage)
-
-            if inspect.isclass(stage):
-                assert asyncio.iscoroutinefunction(getattr(stage, 'process_item'))
-                stage = stage() # instantiate class
-            else:
-                assert asyncio.iscoroutinefunction(stage)
-
-            ret.append(stage)
-
-        return ret
 
     async def enqueue(self, urls):
         if not urls:
@@ -143,43 +118,9 @@ class Spider:
             if isinstance(item, Request):
                 await self.enqueue(item.url)
             else:
-                item = await self.handle_pipeline(self.pipeline, response, item)
+                item = await self.pipeline.process(self, response, item)
 
                 if item is None:
                     continue
 
                 yield item
-
-    async def handle_pipeline(self, pipeline, response, item):
-        """
-        pass item through provided pipeline, a pipeline stage
-        can return the item, or raise DropItem
-        """
-        if item is None:
-            return None
-
-        for stage in pipeline:
-            try:
-                # logger.debug(stage)
-                if getattr(stage, 'process_item', False):
-                    item = await stage.process_item(self, response, item)
-                else:
-                    item = await stage(self, response, item)
-
-            except DropItem as e:
-                # THINK should we be logging or the called function?
-                logger.debug("%s: dropping item: %s", stage.__class__.__name__, e)
-                return None
-
-            except DropItemError as e:
-                # THINK should we be logging or the called function?
-                logger.error("%s: dropping item: %s", stage.__class__.__name__, e)
-                return None
-
-            except Exception as e:
-                # THINK should we really be catching this?
-                logger.error("%s: exception: %s", stage.__class__.__name__, e)
-                logger.exception(e)
-                return None
-
-        return item

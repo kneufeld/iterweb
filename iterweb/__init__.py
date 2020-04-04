@@ -11,4 +11,5 @@ class DropItemError(Exception):
     "drop item and it's an error"
 
 from .spider import Spider
+from .pipeline import Pipeline
 from .reqresp import Request, Response
