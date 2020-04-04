@@ -74,10 +74,19 @@ class Spider:
         """
         return resp & body or None if error
         """
+
+        # making a new session for each fetch is not ideal but there is
+        # a bug with ssl and/or asyncio which spews a bunch of errors when
+        # the program exits. Everything does work however.
+        # https://github.com/aio-libs/aiohttp/issues/4324
+
+        client = client_factory()
+
         try:
             async with client:
                 resp = await client.get(url)
                 resp.text = await resp.text() # set coro with value, this is allowed
+                resp.close()
                 return resp
 
         except (aiohttp.ClientResponseError, aiohttp.client_exceptions.ClientError) as e:
@@ -85,7 +94,7 @@ class Spider:
 
         return None
 
-    async def crawl(self, url, client=None):
+    async def crawl(self, urls, client_factory=None):
         """
         main function, this is an async generator, must "call" with a for loop
 
@@ -96,28 +105,31 @@ class Spider:
         is sent to the pipeline. The result of the pipeline is returned
 
         request: str or Request
-        client: aiohttp.ClientSession
+        client_factory: function that returns aiohttp.ClientSession
         """
-        # convert Request to its url, happens if self.parse yields a Request
-        if isinstance(url, Request):
-            url = url.url
-
         assert inspect.isasyncgenfunction(self.callback), \
         "self.parse must be an async generator (async with yield)"
 
-        if client is None:
-            client = aiohttp.ClientSession(raise_for_status=True)
+        await self.enqueue(urls)
 
-        resp = await self.fetch(client, url)
+        if client_factory is None:
+            client_factory = lambda: aiohttp.ClientSession(
+                loop=self.loop,
+                raise_for_status=True
+            )
 
-        if resp is None or resp.text is None:
-            logger.error("can not proceed from: %s", url)
-            return
+        while not self.queue.empty():
+            url = await self.queue.get()
+            resp = await self.fetch(client_factory, url)
 
-        resp = Response._copy_response(url, resp)
+            if resp is None or resp.text is None:
+                logger.error("can not proceed from: %s", url)
+                return
 
-        async for item in self.handle_response(resp):
-            yield item
+            resp = Response._copy_response(url, resp)
+
+            async for item in self.handle_response(resp):
+                yield item
 
     async def handle_response(self, response):
         """

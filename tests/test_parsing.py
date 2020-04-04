@@ -1,3 +1,4 @@
+import aiohttp
 import pytest
 
 from iterweb import Spider, Request, Response
@@ -24,13 +25,16 @@ async def test_crawl():
 async def test_get_recursive():
 
     async def parse(response):
-        if 'beast' in str(response.url):
+        if 'beast' in response.url:
             yield Request('https://www.google.com')
 
-        yield 'google'
+        if 'google' in response.url:
+            yield 'google'
+
+    client_factory = lambda: aiohttp.ClientSession(raise_for_status=True)
 
     s = Spider(parse_func=parse)
-    gen = s.crawl(beast)
+    gen = s.crawl(beast, client_factory)
     item = await get_next(gen)
 
     assert item == 'google'
