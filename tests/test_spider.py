@@ -123,8 +123,18 @@ async def test_inheritance():
     await s.exhaust(beast)
 
 
-@pytest.mark.asyncio
-async def test_tracking():
+# @pytest.mark.asyncio
+async def test_tracking(aiohttp_client, loop):
+    from .server import beast
+    from aiohttp import web
+
+    app = web.Application()
+    app.router.add_get('/', beast)
+
+    client = await aiohttp_client(app)
+    def client_factory():
+        return client
+
     item = 0
 
     async def parse(response):
@@ -132,7 +142,7 @@ async def test_tracking():
         item += 1
 
     s = Spider(parse_func=parse, track_urls=True)
-    gen = s.crawl([beast, beast])
+    gen = s.crawl(['/', '/'], client_factory=client_factory)
     await get_next(gen)
 
     assert item == 1
