@@ -92,8 +92,9 @@ class Spider:
         request: str or Request
         client_factory: function that returns aiohttp.ClientSession
         """
-        assert inspect.isasyncgenfunction(self.callback), \
-        "self.parse must be an async generator (async with yield)"
+
+        # assert inspect.isasyncgenfunction(self.callback), \
+        # "self.parse must be an async generator (async with yield)"
 
         await self.enqueue(requests)
 
@@ -127,6 +128,13 @@ class Spider:
         start another request if we receive a Request, this is how
         a site can "spider"
         """
+        from functools import partial
+        async def _generator(callback, response):
+            yield await callback(response)
+
+        if not inspect.isasyncgenfunction(callback):
+            callback = partial(_generator, callback)
+
         async for item in callback(response):
             if item is None:
                 continue
