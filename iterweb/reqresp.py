@@ -10,16 +10,18 @@ class Request:
         self.url = url
         self.callback = kw.pop('callback', None)
 
-class Response(aiohttp.web.Response):
+class Response:
+    """
+    wrap an aiohttp.Response with extra functionality
+    but pass any getattr to it
+    """
 
-    def __init__(self, url, *args, **kw):
-        body = kw.pop('body', None)
-        super().__init__(*args, **kw)
-
-        if body:
-            self.body = body
-
+    def __init__(self, url, response):
         self.url = url
+        self._response = response
+
+    def __getattr__(self, name):
+        return getattr(self._response, name)
 
     @reify
     def selector(self):
@@ -36,15 +38,3 @@ class Response(aiohttp.web.Response):
         convert possible relative url to absolute based on request url
         """
         return urljoin(self.url, url)
-
-    @staticmethod
-    def clone(url, aio_resp):
-        """
-        convert the aiohttp response into our Response type
-        """
-        return Response(
-            url,
-            status=aio_resp.status,
-            headers=aio_resp.headers,
-            text=aio_resp.text,
-        )

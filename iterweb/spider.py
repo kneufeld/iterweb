@@ -119,6 +119,7 @@ class Spider:
 
             async for item in self.handle_response(callback, resp):
                 yield item
+                resp = Response(request.url, resp)
 
     async def handle_response(self, callback, response):
         """
