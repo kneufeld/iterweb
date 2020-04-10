@@ -37,13 +37,13 @@ class Response(aiohttp.web.Response):
         return urljoin(self.url, url)
 
     @staticmethod
-    def _copy_response(url, response):
+    def clone(url, aio_resp):
         """
         convert the aiohttp response into our Response type
         """
         return Response(
             url,
-            status=response.status,
-            headers=response.headers,
-            text=response.text,
+            status=aio_resp.status,
+            headers=aio_resp.headers,
+            text=aio_resp.text,
         )

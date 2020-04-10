@@ -101,7 +101,7 @@ class Spider:
                 logger.error("can not proceed with: %s", url)
                 continue
 
-            resp = Response._copy_response(url, resp)
+            resp = Response.clone(url, resp)
 
             async for item in self.handle_response(resp):
                 yield item
