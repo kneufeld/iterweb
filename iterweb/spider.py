@@ -115,23 +115,36 @@ class Spider:
             )
 
         while not self.queue.empty():
-            request = await self.queue.get()
-            url = request.url
-            callback = request.callback or self.callback
+            tasks = []
+            requests = []
 
-            resp = await self.fetch(client_factory, url)
+            # empty the queue to start all fetches, any callback
+            # may add to the queue to keep outer loop going
+            while not self.queue.empty():
+                request = await self.queue.get()
 
-            if resp is None or resp.text is None:
-                logger.error("can not proceed with: %s", url)
-                continue
+                task = self.loop.create_task(
+                    self.fetch(client_factory, request.url)
+                )
 
-            resp = Response.clone(url, resp)
+                tasks.append(task)
+                requests.append(request)
 
-            async for item in self.handle_response(callback, resp):
-                yield item
+            for request, task in zip(requests, tasks):
+                resp = await task
+
+                if resp is None or resp.text is None:
+                    logger.error("can not proceed with: %s", request.url)
+                    continue
+
                 resp = Response(request.url, resp)
+                callback = request.callback or self.callback
+
                 # I've forgetten the async keyword too many times
                 assert is_async(callback), f"{callback.__name__} must be async"
+
+                async for item in self.handle_response(callback, resp):
+                    yield item
 
     async def handle_response(self, callback, response):
         """
