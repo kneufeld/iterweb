@@ -1,5 +1,5 @@
-beast = ""
-redeye = ""
+beast = "https://www2.burgundywall.com/beast/"
+redeye = "https://www2.burgundywall.com/beast/static/images/redeye.16a3a3bc36e1.jpg"
 
 async def get_next(generator):
     """
