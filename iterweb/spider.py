@@ -69,6 +69,16 @@ class Spider:
 
         return None
 
+    async def exhaust(self, *args, **kw):
+        """
+        call self.crawl() but don't yield results, this is
+        useful if self.parse() and/or pipeline does work.
+
+        eg. await spider.exhaust(urls)
+        """
+        async for _ in self.crawl(*args, **kw):
+            pass
+
     async def crawl(self, requests, client_factory=None):
         """
         main function, this is an async generator, must "call" with a for loop
