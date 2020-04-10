@@ -3,10 +3,9 @@ import pytest
 
 from iterweb import Spider, Request, Response
 
-from . import get_next, beast, redeye
+from . import get_next, exhaust, client
 
-@pytest.mark.asyncio
-async def test_crawl():
+async def test_crawl(client):
     called = False
 
     async def parse(response):
@@ -15,32 +14,30 @@ async def test_crawl():
         yield {'value': 'value'}
 
     s = Spider(parse_func=parse)
-    gen = s.crawl(beast)
+    gen = s.crawl('/beast', client=client)
     item = await get_next(gen)
 
     assert called
     assert item['value'] == 'value', "not called back"
+    await exhaust(gen)
 
-@pytest.mark.asyncio
-async def test_get_recursive():
+async def test_get_recursive(client):
 
     async def parse(response):
         if 'beast' in response.url:
-            yield Request('https://www.google.com')
+            yield Request('/google')
 
         if 'google' in response.url:
             yield 'google'
 
-    client_factory = lambda: aiohttp.ClientSession(raise_for_status=True)
-
     s = Spider(parse_func=parse)
-    gen = s.crawl(beast, client_factory)
+    gen = s.crawl('/beast', client=client)
     item = await get_next(gen)
 
     assert item == 'google'
+    await exhaust(gen)
 
-@pytest.mark.asyncio
-async def test_get_redeye():
+async def test_get_redeye(client):
 
     async def parse(response):
         for img in response.xpath('//img'):
@@ -49,13 +46,13 @@ async def test_get_redeye():
             yield src
 
     s = Spider(parse_func=parse)
-    gen = s.crawl(beast)
+    gen = s.crawl('/beast', client=client)
     item = await get_next(gen)
 
-    assert item == redeye
+    assert 'redeye' in item
+    await exhaust(gen)
 
-@pytest.mark.asyncio
-async def test_crawl_page_1():
+async def test_crawl_page_1(client):
 
     async def parse(response):
         yield 1
@@ -63,14 +60,14 @@ async def test_crawl_page_1():
         yield 3
 
     s = Spider(parse_func=parse)
-    gen = s.crawl(beast)
+    gen = s.crawl('/beast', client=client)
 
     assert 1 == await get_next(gen)
     assert 2 == await get_next(gen)
     assert 3 == await get_next(gen)
+    await exhaust(gen)
 
-@pytest.mark.asyncio
-async def test_crawl_exception():
+async def test_crawl_exception(client):
 
     async def parse(response):
         raise RuntimeError("test error")
@@ -79,5 +76,5 @@ async def test_crawl_exception():
     s = Spider(parse_func=parse)
 
     with pytest.raises(RuntimeError):
-        async for item in s.crawl(beast):
+        async for item in s.crawl('/beast', client=client):
             pass

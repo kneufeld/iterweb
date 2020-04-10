@@ -1,41 +1,39 @@
+import pytest_aiohttp
+import aiohttp
 import asyncio
 import pytest
 
 from iterweb import Spider, Response
 
-from . import get_next, beast, redeye
+from . import get_next, client, exhaust
 
-def test_init_empty():
+def test_init_empty(client):
     s = Spider()
     assert s.callback is not None
 
-@pytest.mark.asyncio
-async def test_enqueue_1():
+async def test_enqueue_1(client):
     s = Spider()
     await s.enqueue('url')
     assert not s.queue.empty()
 
-@pytest.mark.asyncio
-async def test_enqueue_2():
+async def test_enqueue_2(client):
     async def parse(response):
         yield None
 
     s = Spider(parse_func=parse)
-    await get_next(s.crawl(beast))
+    await get_next(s.crawl('/beast', client=client))
     assert s.queue.empty()
 
-@pytest.mark.asyncio
-async def test_parse_is_implemented():
+async def test_parse_is_implemented(client):
 
     s = Spider()
-    gen = s.crawl(beast)
+    gen = s.crawl('/beast', client=client)
     # with pytest.raises(AssertionError):
     #     await get_next(gen)
     with pytest.raises(NotImplementedError):
         await get_next(gen)
 
-@pytest.mark.asyncio
-async def test_pipeline_1():
+async def test_pipeline_1(client):
 
     async def p1(spider, response, item):
         assert isinstance(spider, Spider)
@@ -48,28 +46,28 @@ async def test_pipeline_1():
         yield 0
 
     s = Spider(parse_func=parse, pipeline=[p1])
-    gen = s.crawl(beast)
+    gen = s.crawl('/beast', client=client)
     item = await get_next(gen)
 
     assert item == 1
+    await exhaust(gen)
 
 async def global_p1(spider, response, item):
     return 1
 
-@pytest.mark.asyncio
-async def test_pipeline_2():
+async def test_pipeline_2(client):
 
     async def parse(response):
         yield 0
 
     s = Spider(parse_func=parse, pipeline=['tests.test_spider.global_p1'])
-    gen = s.crawl(beast)
+    gen = s.crawl('/beast', client=client)
     item = await get_next(gen)
 
     assert item == 1
+    await exhaust(gen)
 
-@pytest.mark.asyncio
-async def test_coro_parse():
+async def test_coro_parse(client):
     """
     this tests convert_to_generator in handle_response
     """
@@ -89,14 +87,14 @@ async def test_coro_parse():
         return 1
 
     s = Spider(parse_func=parse)
-    gen = s.crawl(beast)
+    gen = s.crawl('/beast', client=client)
     r = await get_next(gen)
 
     assert item == 2
     assert r == 1
+    await exhaust(gen)
 
-@pytest.mark.asyncio
-async def test_exhaust():
+async def test_exhaust(client):
     called = False
 
     async def parse(response):
@@ -105,12 +103,11 @@ async def test_exhaust():
         # yield or return here works fine
 
     s = Spider(parse_func=parse)
-    await s.exhaust(beast)
+    await s.exhaust('/beast', client=client)
 
     assert called == 1
 
-@pytest.mark.asyncio
-async def test_inheritance():
+async def test_inheritance(client):
     called = False
 
     class MySpider(Spider):
@@ -120,29 +117,19 @@ async def test_inheritance():
             yield
 
     s = MySpider()
-    await s.exhaust(beast)
+    await s.exhaust('/beast', client=client)
 
 
-# @pytest.mark.asyncio
-async def test_tracking(aiohttp_client, loop):
-    from .server import beast
-    from aiohttp import web
-
-    app = web.Application()
-    app.router.add_get('/', beast)
-
-    client = await aiohttp_client(app)
-    def client_factory():
-        return client
-
+async def test_tracking(client):
     item = 0
 
     async def parse(response):
         nonlocal item
         item += 1
+        assert 'redeye' in response.text
+        yield 'foo'
 
     s = Spider(parse_func=parse, track_urls=True)
-    gen = s.crawl(['/', '/'], client_factory=client_factory)
-    await get_next(gen)
+    await s.exhaust(['/beast', '/beast'], client=client)
 
     assert item == 1
