@@ -59,7 +59,7 @@ class Spider:
 
             await self.queue.put(request)
 
-    async def fetch(self, client_factory, url):
+    async def fetch(self, session, url):
         """
         return resp & body or None if error
         """
@@ -69,11 +69,8 @@ class Spider:
         # the program exits. Everything does work however.
         # https://github.com/aio-libs/aiohttp/issues/4324
 
-        client = client_factory()
-
         try:
-            async with client:
-                resp = await client.get(url)
+            async with session.get(url) as resp:
                 resp.text = await resp.text() # set coro with value, this is allowed
                 resp.close()
                 return resp
@@ -93,7 +90,7 @@ class Spider:
         async for _ in self.crawl(*args, **kw):
             pass
 
-    async def crawl(self, requests, client_factory=None):
+    async def crawl(self, requests, client=None):
         """
         main function, this is an async generator, must "call" with a for loop
 
@@ -108,43 +105,45 @@ class Spider:
         """
         await self.enqueue(requests)
 
-        if client_factory is None:
-            client_factory = lambda: aiohttp.ClientSession(
+        if client is None:
+            client = aiohttp.ClientSession(
                 loop=self.loop,
                 raise_for_status=True
             )
 
-        while not self.queue.empty():
-            tasks = []
-            requests = []
+        async with client as session:
 
-            # empty the queue to start all fetches, any callback
-            # may add to the queue to keep outer loop going
             while not self.queue.empty():
-                request = await self.queue.get()
+                tasks = []
+                requests = []
 
-                task = self.loop.create_task(
-                    self.fetch(client_factory, request.url)
-                )
+                # empty the queue to start all fetches, any callback
+                # may add to the queue to keep outer loop going
+                while not self.queue.empty():
+                    request = await self.queue.get()
 
-                tasks.append(task)
-                requests.append(request)
+                    task = self.loop.create_task(
+                        self.fetch(session, request.url)
+                    )
 
-            for request, task in zip(requests, tasks):
-                resp = await task
+                    tasks.append(task)
+                    requests.append(request)
 
-                if resp is None or resp.text is None:
-                    logger.error("can not proceed with: %s", request.url)
-                    continue
+                for request, task in zip(requests, tasks):
+                    resp = await task
 
-                resp = Response(request.url, resp)
-                callback = request.callback or self.callback
+                    if resp is None or resp.text is None:
+                        logger.error("can not proceed with: %s", request.url)
+                        continue
 
-                # I've forgetten the async keyword too many times
-                assert is_async(callback), f"{callback.__name__} must be async"
+                    resp = Response(request.url, resp)
+                    callback = request.callback or self.callback
 
-                async for item in self.handle_response(callback, resp):
-                    yield item
+                    # I've forgetten the async keyword too many times
+                    assert is_async(callback), f"{callback.__name__} must be async"
+
+                    async for item in self.handle_response(callback, resp):
+                        yield item
 
     async def handle_response(self, callback, response):
         """
