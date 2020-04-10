@@ -8,6 +8,7 @@ from .utils.reify import reify
 class Request:
     def __init__(self, url, *args, **kw):
         self.url = url
+        self.callback = kw.pop('callback', None)
 
 class Response(aiohttp.web.Response):
 

@@ -29,21 +29,21 @@ class Spider:
             setattr(self, name, value)
 
     async def parse(self, response):
-        raise NotImplementedError("%s().parse() not implemented", self.__class__.__name__)
+        raise NotImplementedError("%s().parse() not implemented" % self.__class__.__name__)
 
-    async def enqueue(self, urls):
-        if not urls:
+    async def enqueue(self, requests):
+        if not requests:
             return
 
-        if not isinstance(urls, list):
-            urls = [urls]
+        if not isinstance(requests, list):
+            requests = [requests]
 
-        for url in urls:
+        for request in requests:
             # convert Request to its url, happens if self.parse yields a Request
-            if isinstance(url, Request):
-                url = url.url
+            if not isinstance(request, Request):
+                request = Request(request, callback=self.callback)
 
-            await self.queue.put(url)
+            await self.queue.put(request)
 
     async def fetch(self, client_factory, url):
         """
@@ -69,7 +69,7 @@ class Spider:
 
         return None
 
-    async def crawl(self, urls, client_factory=None):
+    async def crawl(self, requests, client_factory=None):
         """
         main function, this is an async generator, must "call" with a for loop
 
@@ -85,7 +85,7 @@ class Spider:
         assert inspect.isasyncgenfunction(self.callback), \
         "self.parse must be an async generator (async with yield)"
 
-        await self.enqueue(urls)
+        await self.enqueue(requests)
 
         if client_factory is None:
             client_factory = lambda: aiohttp.ClientSession(
@@ -94,7 +94,10 @@ class Spider:
             )
 
         while not self.queue.empty():
-            url = await self.queue.get()
+            request = await self.queue.get()
+            url = request.url
+            callback = request.callback or self.callback
+
             resp = await self.fetch(client_factory, url)
 
             if resp is None or resp.text is None:
@@ -103,10 +106,10 @@ class Spider:
 
             resp = Response.clone(url, resp)
 
-            async for item in self.handle_response(resp):
+            async for item in self.handle_response(callback, resp):
                 yield item
 
-    async def handle_response(self, response):
+    async def handle_response(self, callback, response):
         """
         pass the response to the self.parse (likely self.parse()) and
         take it's emitted items and pass them to our pipeline
@@ -114,9 +117,11 @@ class Spider:
         start another request if we receive a Request, this is how
         a site can "spider"
         """
-        async for item in self.callback(response):
-            if isinstance(item, Request):
-                await self.enqueue(item.url)
+        async for item in callback(response):
+            if item is None:
+                continue
+            elif isinstance(item, Request):
+                await self.enqueue(item)
             else:
                 item = await self.pipeline.process(self, response, item)
 
