@@ -1,3 +1,4 @@
+from functools import partial
 import inspect
 import asyncio
 
@@ -10,6 +11,9 @@ from .reqresp import Request, Response
 import logging
 logger = logging.getLogger(__name__)
 
+
+def is_async(func):
+    return inspect.isasyncgenfunction(func) or asyncio.iscoroutinefunction(func)
 
 class Spider:
 
@@ -102,10 +106,6 @@ class Spider:
         request: str or Request
         client_factory: function that returns aiohttp.ClientSession
         """
-
-        # assert inspect.isasyncgenfunction(self.callback), \
-        # "self.parse must be an async generator (async with yield)"
-
         await self.enqueue(requests)
 
         if client_factory is None:
@@ -130,21 +130,24 @@ class Spider:
             async for item in self.handle_response(callback, resp):
                 yield item
                 resp = Response(request.url, resp)
+                # I've forgetten the async keyword too many times
+                assert is_async(callback), f"{callback.__name__} must be async"
 
     async def handle_response(self, callback, response):
         """
-        pass the response to the self.parse (likely self.parse()) and
-        take it's emitted items and pass them to our pipeline
+        pass the response to the callback (likely self.parse) and
+        pass the emitted items to our pipeline
 
         start another request if we receive a Request, this is how
         a site can "spider"
         """
-        from functools import partial
-        async def _generator(callback, response):
+        async def convert_to_generator(callback, response):
             yield await callback(response)
 
+        # if the callback is not a generator, then convert it
+        # to one so that we can use it in the loop below
         if not inspect.isasyncgenfunction(callback):
-            callback = partial(_generator, callback)
+            callback = partial(convert_to_generator, callback)
 
         async for item in callback(response):
             if item is None:
