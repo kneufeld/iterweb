@@ -18,7 +18,7 @@ class Spider:
         self.loop = kw.pop('loop', asyncio.get_event_loop())
         self.callback = kw.pop('parse_func', self.parse)
 
-        stages = kw.pop('pipeline', None)
+        stages = kw.pop('pipeline', [])
         self.pipeline = Pipeline(stages)
 
         self.queue = asyncio.Queue()

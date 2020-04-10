@@ -29,9 +29,6 @@ class Pipeline:
         if pipeline members are strings then load them
         else assure that they're coroutines or class with process_item
         """
-        if not stages:
-            return []
-
         ret = []
 
         for stage in stages:
