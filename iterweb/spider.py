@@ -21,7 +21,12 @@ class Spider:
         stages = kw.pop('pipeline', None)
         self.pipeline = Pipeline(stages)
 
-        self.queue = asyncio.Queue(loop=self.loop)
+        self.queue = asyncio.Queue()
+
+        # this is a bit of a misnomer, we only track at enqueuing time
+        # and success/failure or ultimate fetch is not taken into account
+        self.track_urls = kw.pop('track_urls', False)
+        self.visted_urls = set() # probably visited
 
         # let caller put arbitrary values in us, careful about overriding
         # something important
@@ -39,9 +44,14 @@ class Spider:
             requests = [requests]
 
         for request in requests:
-            # convert Request to its url, happens if self.parse yields a Request
+            # convert url string to a Request
             if not isinstance(request, Request):
                 request = Request(request, callback=self.callback)
+
+            if self.track_urls:
+                if request.url in self.visted_urls:
+                    continue
+                self.visted_urls.add(request.url)
 
             await self.queue.put(request)
 
