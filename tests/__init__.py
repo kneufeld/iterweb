@@ -48,6 +48,7 @@ async def get_next(generator):
     except StopAsyncIteration:
         return None
 
+# https://github.com/aio-libs/aiohttp/issues/4684
 async def exhaust(generator):
     async for _ in generator:
         pass
