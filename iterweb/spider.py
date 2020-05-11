@@ -71,7 +71,7 @@ class Spider:
 
         try:
             async with session.get(url) as resp:
-                resp.text = await resp.text() # set coro with value, this is allowed
+                resp._body = await resp.read() # set coro with value, this is allowed
                 resp.close()
                 return resp
 
@@ -132,7 +132,7 @@ class Spider:
                 for request, task in zip(requests, tasks):
                     resp = await task
 
-                    if resp is None or resp.text is None:
+                    if resp is None:
                         logger.error("can not proceed with: %s", request.url)
                         continue
 

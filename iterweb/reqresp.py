@@ -23,6 +23,17 @@ class Response:
     def __getattr__(self, name):
         return getattr(self._response, name)
 
+    @property
+    def body(self):
+        return self._body
+
+    @property
+    def text(self):
+        if isinstance(self._body, bytes):
+            return self._body.decode('utf-8')
+        else:
+            return self._body
+
     @reify
     def selector(self):
         return Selector(self.text)
