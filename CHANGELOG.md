@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.1
+
+* read response.body instead of response.text to allow downloading of binary files
+* track_urls is now True by default
+
 ## 0.3
 
 * lots of refactoring
