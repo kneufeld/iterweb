@@ -32,7 +32,7 @@ class Spider:
         self.track_urls = kw.pop('track_urls', False)
         self.visted_urls = set() # probably visited
 
-        # let caller put arbitrary values in us, careful about overriding
+        # let caller put arbitrary attributes in us, careful about overriding
         # something important
         for name, value in kw.items():
             setattr(self, name, value)
@@ -151,7 +151,7 @@ class Spider:
         pass the emitted items to our pipeline
 
         start another request if we receive a Request, this is how
-        a site can "spider"
+        a site can get crawled
         """
         async def convert_to_generator(callback, response):
             yield await callback(response)

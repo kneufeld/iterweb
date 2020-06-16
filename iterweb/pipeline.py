@@ -19,9 +19,18 @@ def load_object(name):
 
 
 class Pipeline:
+    """
+    A pipeline is a list of functions that are called with the item
+    that is emitted from Spider.parse(). The item can be modified for
+    future stages or a stage can raise DropItem to stop processing.
+    """
 
     def __init__(self, stages):
         self.stages = self.build_pipeline(stages)
+
+        # THINK should an optional drop_callback be passed in that gets
+        # called if item is dropped in pipeline? Could be the best way
+        # to log that event
 
     @classmethod
     def build_pipeline(cls, stages):
