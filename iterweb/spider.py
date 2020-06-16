@@ -29,7 +29,7 @@ class Spider:
 
         # this is a bit of a misnomer, we only track at enqueuing time
         # and success/failure or ultimate fetch is not taken into account
-        self.track_urls = kw.pop('track_urls', False)
+        self.track_urls = kw.pop('track_urls', True)
         self.visted_urls = set() # probably visited
 
         # let caller put arbitrary attributes in us, careful about overriding
@@ -55,7 +55,8 @@ class Spider:
             if self.track_urls:
                 if request.url in self.visted_urls:
                     continue
-                self.visted_urls.add(request.url)
+                else:
+                    self.visted_urls.add(request.url)
 
             await self.queue.put(request)
 
