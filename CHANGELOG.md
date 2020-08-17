@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.2
+
+* Python 3.8 changes how functools.partial() wraps async function, needs
+  a minor patch
+
 ## 0.3.1
 
 * read response.body instead of response.text to allow downloading of binary files
