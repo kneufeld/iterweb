@@ -13,6 +13,10 @@ logger = logging.getLogger(__name__)
 
 
 def is_async(func):
+    # python 3.8 changed how an async function is passed through a functools.partial
+    # so "follow" any nested partials to get to the "real" function and test that
+    while isinstance(func, partial):
+        func = func.func
     return inspect.isasyncgenfunction(func) or asyncio.iscoroutinefunction(func)
 
 class Spider:
