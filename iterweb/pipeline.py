@@ -58,8 +58,8 @@ class Pipeline:
         if isinstance(stage, partial):
             if inspect.ismethod(stage.func):
                 cls_name = stage.func.__self__.__class__.__name__
-                func_name = stage.func.__name__
-                return "{}.{}".format(cls_name, func_name)
+                # func_name = stage.func.__name__
+                return cls_name # appending .process_item seems redundant
             else:
                 return stage.func.__name__
 
