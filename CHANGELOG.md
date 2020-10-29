@@ -1,8 +1,12 @@
 # Changelog
 
+## 0.3.3
+
+* nicer log output in pipeline based on stage name
+
 ## 0.3.2
 
-* Python 3.8 changes how functools.partial() wraps async function, needs
+* Python 3.8 changes how functools.partial() wraps async functions, needed
   a minor patch
 
 ## 0.3.1
