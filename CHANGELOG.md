@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.3.3
+## 0.3.4
 
 * nicer log output in pipeline based on stage name
 
