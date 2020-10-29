@@ -54,6 +54,17 @@ class Pipeline:
 
         return ret
 
+    def stage_name(self, stage):
+        if isinstance(stage, partial):
+            if inspect.ismethod(stage.func):
+                cls_name = stage.func.__self__.__class__.__name__
+                func_name = stage.func.__name__
+                return "{}.{}".format(cls_name, func_name)
+            else:
+                return stage.func.__name__
+
+        return stage.__class__.__name__
+
     async def process(self, spider, response, item):
         """
         pass item through provided pipeline, a pipeline stage
@@ -63,23 +74,24 @@ class Pipeline:
             return None
 
         for stage in self.stages:
+
             try:
                 # logger.debug(stage)
                 item = await stage(spider, response, item)
 
             except DropItem as e:
                 # THINK should we be logging or the called function?
-                logger.debug("%s: dropping item: %s", stage.__class__.__name__, e)
+                logger.debug("%s: dropping item: %s", self.stage_name(stage), e)
                 return None
 
             except DropItemError as e:
                 # THINK should we be logging or the called function?
-                logger.error("%s: dropping item: %s", stage.__class__.__name__, e)
+                logger.error("%s: dropping item: %s", self.stage_name(stage), e)
                 return None
 
             except Exception as e:
                 # THINK should we really be catching this?
-                logger.error("%s: exception: %s", stage.__class__.__name__, e)
+                logger.error("%s: exception: %s", self.stage_name(stage), e)
                 logger.exception(e)
                 return None
 
