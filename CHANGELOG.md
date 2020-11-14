@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.5
+
+* work around misbehaving upstream proxy by adding keep-alive header
+
 ## 0.3.4
 
 * nicer log output in pipeline based on stage name
