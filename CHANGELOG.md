@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.6
+
+* explicitly close session when we create it
+
 ## 0.3.5
 
 * work around misbehaving upstream proxy by adding keep-alive header
