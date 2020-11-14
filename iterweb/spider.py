@@ -116,6 +116,9 @@ class Spider:
                 loop=self.loop,
                 headers={'Connection': 'keep-alive'}
             )
+            close_client = True
+        else:
+            close_client = False
 
         async with client as session:
 
@@ -150,6 +153,9 @@ class Spider:
 
                     async for item in self.handle_response(callback, resp):
                         yield item
+
+            if close_client and not client.closed:
+                await client.close()
 
     async def handle_response(self, callback, response):
         """
