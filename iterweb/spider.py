@@ -76,12 +76,13 @@ class Spider:
 
         try:
             async with session.get(url) as resp:
+                resp.raise_for_status()
                 resp._body = await resp.read() # set coro with value, this is allowed
                 resp.close()
                 return resp
 
         except (aiohttp.ClientResponseError, aiohttp.client_exceptions.ClientError) as e:
-            logger.error("url: %s: error: %s", url, e)
+            logger.error("url: %s: %s - error: %s", url, resp.status, e)
 
         return None
 
@@ -113,7 +114,7 @@ class Spider:
         if client is None:
             client = aiohttp.ClientSession(
                 loop=self.loop,
-                raise_for_status=True
+                headers={'Connection': 'keep-alive'}
             )
 
         async with client as session:
