@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.7
+
+* use try/finally block to close session, race condition? Not reproducible.
+
 ## 0.3.6
 
 * explicitly close session when we create it
