@@ -97,6 +97,23 @@ class Spider:
             pass
 
     async def crawl(self, requests, client=None):
+        try:
+            if client is None:
+                client = aiohttp.ClientSession(
+                    loop=self.loop,
+                    headers={'Connection': 'keep-alive'}
+                )
+                close_client = True
+            else:
+                close_client = False
+
+            await self._crawl(requests, client)
+
+        finally:
+            if close_client and not client.closed:
+                await client.close()
+
+    async def _crawl(self, requests, client):
         """
         main function, this is an async generator, must "call" with a for loop
 
@@ -110,15 +127,6 @@ class Spider:
         client_factory: function that returns aiohttp.ClientSession
         """
         await self.enqueue(requests)
-
-        if client is None:
-            client = aiohttp.ClientSession(
-                loop=self.loop,
-                headers={'Connection': 'keep-alive'}
-            )
-            close_client = True
-        else:
-            close_client = False
 
         async with client as session:
 
@@ -153,9 +161,6 @@ class Spider:
 
                     async for item in self.handle_response(callback, resp):
                         yield item
-
-            if close_client and not client.closed:
-                await client.close()
 
     async def handle_response(self, callback, response):
         """
