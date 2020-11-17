@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.8
+
+* been on the struggle bus lately, yield items from sub function
+
 ## 0.3.7
 
 * use try/finally block to close session, race condition? Not reproducible.
