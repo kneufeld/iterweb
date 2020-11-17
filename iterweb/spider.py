@@ -107,7 +107,8 @@ class Spider:
             else:
                 close_client = False
 
-            await self._crawl(requests, client)
+            async for item in self._crawl(requests, client):
+                yield item
 
         finally:
             if close_client and not client.closed:
