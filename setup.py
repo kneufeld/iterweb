@@ -42,9 +42,10 @@ setup(
 
     install_requires = open('requirements.txt').readlines(),
 
+    # use via: pip install -e .[dev]
     # use via: pip install -e .[docs]
     extras_require = {
-        # 'dev': open('req_tests.txt').readlines(),
+        'dev': open('requirements-dev.txt').readlines(),
         # 'docs': open('req_docs.txt').readlines(),
     },
 
