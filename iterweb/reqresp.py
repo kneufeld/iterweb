@@ -5,6 +5,9 @@ from parsel import Selector
 
 from .utils.reify import reify
 
+import logging
+logger = logging.getLogger(__name__)
+
 class Request:
     def __init__(self, url, *args, **kw):
         self.url = url
@@ -12,13 +15,13 @@ class Request:
 
 class Response:
     """
-    wrap an aiohttp.Response with extra functionality
+    wrap an aiohttp.ClientResponse with extra functionality
     but pass any getattr to it
     """
 
     def __init__(self, url, response):
         self.url = url
-        self._response = response
+        self._response = response # aiohttp.ClientResponse
 
     def __getattr__(self, name):
         return getattr(self._response, name)
@@ -29,10 +32,11 @@ class Response:
 
     @property
     def text(self):
-        if isinstance(self._body, bytes):
-            return self._body.decode('utf-8')
-        else:
-            return self._body
+        """
+        convert body (bytes) to a string by using response encoding or utf-8
+        """
+        # can't use self._response.text as it's a coro, calls the equivalent though
+        return self._body.decode(self._response.get_encoding() or 'utf-8')
 
     @reify
     def selector(self):
