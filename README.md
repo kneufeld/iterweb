@@ -46,11 +46,11 @@ class StageUrlJoin:
 
 async def get_pics(url):
     pipeline = [
-        '__main__.StageUrlJoin',
+        '__main__.StageUrlJoin', # or StageUrlJoin
     ]
 
     loop = asyncio.get_event_loop()
-    spider = ImgSpider(pipeline, loop=loop)
+    spider = ImgSpider(pipeline=pipeline, loop=loop)
 
     async for img_url in spider.crawl(url):
         print(img_url)
