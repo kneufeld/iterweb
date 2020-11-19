@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.9
+
+* lots of comment cleanups
+* test code example in readme.md
+* Response.text no longer assumes utf-8
+
 ## 0.3.8
 
 * been on the struggle bus lately, yield items from sub function

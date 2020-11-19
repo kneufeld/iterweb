@@ -1,4 +1,4 @@
-__version__      = "0.3.8"
+__version__      = "0.3.9"
 __author__       = "Kurt Neufeld"
 __author_email__ = "kneufeld@burgundywall.com"
 __license__      = "MIT"
