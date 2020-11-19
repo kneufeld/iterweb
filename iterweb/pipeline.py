@@ -67,7 +67,7 @@ class Pipeline:
 
     async def process(self, spider, response, item):
         """
-        pass item through provided pipeline, a pipeline stage
+        pass item through our stages, a pipeline stage
         can return the item, or raise DropItem
         """
         if item is None:
@@ -76,21 +76,21 @@ class Pipeline:
         for stage in self.stages:
 
             try:
-                # logger.debug(stage)
+                # logger.debug(f"{self.stage_name(stage)} {item}")
                 item = await stage(spider, response, item)
 
             except DropItem as e:
-                # THINK should we be logging or the called function?
                 logger.debug("%s: dropping item: %s", self.stage_name(stage), e)
                 return None
 
             except DropItemError as e:
-                # THINK should we be logging or the called function?
                 logger.error("%s: dropping item: %s", self.stage_name(stage), e)
                 return None
 
             except Exception as e:
-                # THINK should we really be catching this?
+                # THINK should we really be catching this? If we don't the last
+                # stage of the 1000th item could cause the crawl to fail as we're
+                # deep in the iterweb library vs the client's calling code
                 logger.error("%s: exception: %s", self.stage_name(stage), e)
                 logger.exception(e)
                 return None
