@@ -30,7 +30,7 @@ class Response:
     def body(self):
         return self._body
 
-    @property
+    @reify
     def text(self):
         """
         convert body (bytes) to a string by using response encoding or utf-8
