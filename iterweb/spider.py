@@ -90,7 +90,7 @@ class Spider:
                 return resp
 
         except (aiohttp.ClientResponseError, aiohttp.client_exceptions.ClientError) as e:
-            logger.error("url: %s: %s - error: %s", url, resp.status, e)
+            logger.error("url: %s: error: %s", url, e)
 
         return None
 
