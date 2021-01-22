@@ -6,6 +6,14 @@
 * test code example in readme.md
 * Response.text no longer assumes utf-8
 
+## 0.3.10
+
+* minor bug fixes
+
+## 0.3.9
+
+* minor bug fixes
+
 ## 0.3.8
 
 * been on the struggle bus lately, yield items from sub function
